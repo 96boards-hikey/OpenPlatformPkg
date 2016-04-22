@@ -191,6 +191,11 @@ READ_LOCK_STATUS   = TRUE
   INF MdeModulePkg/Universal/DevicePathDxe/DevicePathDxe.inf
   INF ArmPlatformPkg/Bds/Bds.inf
 
+  # add Device Tree to the Firmware Volume
+  FILE FREEFORM = 91148425-CDD2-4830-8BD0-C61C6DEA3621 {
+    SECTION RAW = OpenPlatformPkg/Platforms/Hisilicon/HiKey/DeviceTree/hi6220-hikey.dtb
+  }
+
   #
   # Legacy Linux Loader
   #

@@ -17,6 +17,7 @@
 #include <Library/BdsLib.h>
 #include <Library/CacheMaintenanceLib.h>
 #include <Library/DevicePathLib.h>
+#include <Library/DxeServicesLib.h>
 #include <Library/IoLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/PrintLib.h>
@@ -69,6 +70,7 @@ STATIC UINT16 mBootIndex = 0;
 #define HIKEY_BOOT_ENTRY_FASTBOOT          0
 #define HIKEY_BOOT_ENTRY_BOOT_EMMC         1    /* boot from eMMC */
 #define HIKEY_BOOT_ENTRY_BOOT_SD           2    /* boot from SD card */
+#define HIKEY_BOOT_ENTRY_ANDROID           3    /* boot from eMMC */
 
 STATIC struct HiKeyBootEntry LinuxEntries[] = {
   [HIKEY_BOOT_ENTRY_FASTBOOT] = {
@@ -86,8 +88,14 @@ STATIC struct HiKeyBootEntry LinuxEntries[] = {
   },
   [HIKEY_BOOT_ENTRY_BOOT_SD] = {
     L"VenHw(594BFE73-5E18-4F12-8119-19DB8C5FC849)/HD(1,MBR,0x00000000,0x3F,0x21FC0)/Image",
-    L"dtb=hi6220-hikey.dtb console=ttyAMA3,115200 earlycon=pl011,0xf7113000 root=/dev/mmcblk1p2 rw rootwait initrd=initrd.img efi=noruntime",
+    L"console=ttyAMA3,115200 earlycon=pl011,0xf7113000 root=/dev/mmcblk1p2 rw rootwait initrd=initrd.img efi=noruntime",
     L"boot from SD card",
+    LOAD_OPTION_CATEGORY_BOOT
+  },
+  [HIKEY_BOOT_ENTRY_ANDROID] = {
+    L"VenHw(B549F005-4BD4-4020-A0CB-06F42BDA68C3)/HD(6,GPT,5C0F213C-17E1-4149-88C8-8B50FB4EC70E,0x7000,0x20000)/Offset(0x0000,0x20000)",
+    L"console=ttyAMA3,115200 earlycon=pl011,0xf7113000 root=/dev/mmcblk0p9 rw rootwait initrd=initrd.img efi=noruntime",
+    L"boot Android",
     LOAD_OPTION_CATEGORY_BOOT
   }
 };
@@ -133,6 +141,7 @@ HiKeyVerifyBootEntry (
   BDS_LOAD_OPTION                    *LoadOption;
   EFI_STATUS                          Status;
   UINTN                               DescriptionLength;
+  UINTN                               Padding;
 
   Status = GetGlobalEnvironmentVariable (BootVariableName, NULL, &EfiLoadOptionSize, (VOID**)&EfiLoadOption);
   if (EFI_ERROR (Status)) {
@@ -160,6 +169,10 @@ HiKeyVerifyBootEntry (
     LoadOption->OptionalDataSize = 0;
   } else {
     LoadOption->OptionalData     = (VOID*)((UINTN)(LoadOption->FilePathList) + LoadOption->FilePathListLength);
+    Padding = (UINTN)LoadOption->OptionalData % sizeof(UINTN);
+    if (Padding) {
+      LoadOption->OptionalData   = (VOID*)((UINTN)LoadOption->OptionalData + sizeof(UINTN) - Padding);
+    }
     LoadOption->OptionalDataSize = EfiLoadOptionSize - ((UINTN)LoadOption->OptionalData - (UINTN)EfiLoadOption);
   }
 
@@ -497,36 +510,39 @@ HiKeySDCardIsPresent (
 }
 
 STATIC
-VOID
+EFI_STATUS
 EFIAPI
-HiKeyCreateFdtVariable (
-  IN CHAR16          *FdtPathText
+HiKeyInstallFdt (
+  IN      VOID
   )
 {
-  UINTN                     FdtDevicePathSize;
-  EFI_DEVICE_PATH_PROTOCOL *FdtDevicePath;
-  EFI_STATUS                Status;
-  EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL *DevicePathFromTextProtocol;
+  EFI_STATUS              Status;
+  VOID                   *Image;
+  UINTN                   ImageSize, NumPages;
+  EFI_GUID               *Guid;
+  EFI_PHYSICAL_ADDRESS    FdtConfigurationTableBase;
 
-  Status = gBS->LocateProtocol (
-                  &gEfiDevicePathFromTextProtocolGuid,
-                  NULL,
-                  (VOID**)&DevicePathFromTextProtocol
-                  );
-  ASSERT_EFI_ERROR(Status);
+  Guid = &gHiKeyTokenSpaceGuid;
+  Status = GetSectionFromAnyFv (Guid, EFI_SECTION_RAW, 0, &Image, &ImageSize);
+  if (EFI_ERROR (Status))
+    return Status;
+  NumPages = EFI_SIZE_TO_PAGES (ImageSize);
+  Status = gBS->AllocatePages (
+		  AllocateAnyPages, EfiRuntimeServicesData,
+		  NumPages, &FdtConfigurationTableBase
+		  );
+  if (EFI_ERROR (Status))
+    return Status;
+  CopyMem ((VOID *)(UINTN)FdtConfigurationTableBase, Image, ImageSize);
 
-  FdtDevicePath = DevicePathFromTextProtocol->ConvertTextToDevicePath (FdtPathText);
-  ASSERT (FdtDevicePath != NULL);
-
-  FdtDevicePathSize = GetDevicePathSize (FdtDevicePath);
-  Status = gRT->SetVariable (
-                  (CHAR16*)L"Fdt",
-                  &gFdtVariableGuid,
-                  EFI_VARIABLE_RUNTIME_ACCESS | EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
-                  FdtDevicePathSize,
-                  FdtDevicePath
-                  );
-  ASSERT_EFI_ERROR(Status);
+  Status = gBS->InstallConfigurationTable (
+		  &gFdtTableGuid,
+		  (VOID *)(UINTN)FdtConfigurationTableBase
+		  );
+  if (EFI_ERROR (Status)) {
+    gBS->FreePages (FdtConfigurationTableBase, NumPages);
+  }
+  return Status;
 }
 
 #define BOOT_MAGIC        "ANDROID!"
@@ -603,7 +619,6 @@ HiKeyOnEndOfDxe (
                   &VariableSize,
                   (VOID*)&AutoBoot
                   );
-  DEBUG ((EFI_D_ERROR, "#%a, %d, Status:%r, AutoBoot:%d\n", __func__, __LINE__, Status, AutoBoot));
   if (Status == EFI_NOT_FOUND) {
     AutoBoot = 1;
     Status = gRT->SetVariable (
@@ -704,13 +719,10 @@ HiKeyOnEndOfDxe (
     DEBUG ((EFI_D_ERROR, "failed to get HiKeyBootDevice variable, %r\n", Status));
   }
 
-  // Fdt variable should be aligned with Image path.
-  // In another word, Fdt and Image file should be located in the same path.
-  // Since grub is used for eMMC boot, don't need to assign Fdt and Image path.
-  switch (mBootIndex) {
-  case HIKEY_BOOT_ENTRY_BOOT_SD:
-    HiKeyCreateFdtVariable (L"VenHw(594BFE73-5E18-4F12-8119-19DB8C5FC849)/HD(1,MBR,0x00000000,0x3F,0x21FC0)/hi6220-hikey.dtb");
-    break;
+  Status = HiKeyInstallFdt ();
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "%a: failed to install Fdt file\n", __func__));
+    return;
   }
 
   Status = HiKeyCreateBootNext ();
@@ -718,7 +730,6 @@ HiKeyOnEndOfDxe (
     DEBUG ((EFI_D_ERROR, "%a: failed to set BootNext variable\n", __func__));
     return;
   }
-  DEBUG ((EFI_D_ERROR, "#%a, %d, Status:%r\n", __func__, __LINE__, Status));
 }
 
 EFI_STATUS

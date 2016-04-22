@@ -38,6 +38,7 @@
   BdsLib
   CacheMaintenanceLib
   DebugLib
+  DxeServicesLib
   DxeServicesTableLib
   IoLib
   PcdLib
@@ -53,6 +54,7 @@
   gEfiEndOfDxeEventGroupGuid
   gEfiFileInfoGuid
   gEfiGlobalVariableGuid
+  gFdtTableGuid
   gFdtVariableGuid
   gHiKeyVariableGuid
 
