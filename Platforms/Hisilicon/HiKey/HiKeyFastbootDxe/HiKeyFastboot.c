@@ -248,7 +248,7 @@ LoadPtable (
   }
 Exit:
   FreePages (
-    (VOID *)((UINTN)PartitionEntries - (2 * EFI_PAGE_SIZE)),
+    (VOID *)((UINTN)PartitionEntries - (2 * mFlashBlockIo->Media->BlockSize)),
     EFI_SIZE_TO_PAGES (34 * mFlashBlockIo->Media->BlockSize)
     );
   return Status;
