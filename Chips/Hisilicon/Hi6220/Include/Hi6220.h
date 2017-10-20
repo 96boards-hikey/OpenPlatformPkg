@@ -58,10 +58,14 @@
 #define RST0_USBOTG				BIT6
 #define RST0_USBOTG_32K				BIT7
 
-#define EYE_PATTERN_PARA			0x7053348c
+#define PMCTRL_DDRCLKDIVCFG                     0xF70325A8
+
+#define EYE_PATTERN_PARA			0x7053348C
 
 #define MDDRC_AXI_BASE                          0xF7120000
 #define AXI_REGION_MAP_OFFSET(x)                ( 0x100 + ( x ) * 0x10 )
+
+#define MDDRC_DMC_BASE                          0xF7128000
 
 #define AO_CTRL_BASE				0xF7800000
 #define SC_PW_MTCMOS_EN0			0x830

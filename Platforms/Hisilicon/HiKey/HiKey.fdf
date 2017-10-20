@@ -113,6 +113,12 @@ READ_LOCK_STATUS   = TRUE
   INF MdeModulePkg/Universal/WatchdogTimerDxe/WatchdogTimer.inf
 
   #
+  # SMBIOS/DMI
+  #
+  INF MdeModulePkg/Universal/SmbiosDxe/SmbiosDxe.inf
+  INF OpenPlatformPkg/Platforms/Hisilicon/HiKey/SmbiosPlatformDxe/SmbiosPlatformDxe.inf
+
+  #
   # GPIO
   #
   INF ArmPlatformPkg/Drivers/PL061GpioDxe/PL061GpioDxe.inf
