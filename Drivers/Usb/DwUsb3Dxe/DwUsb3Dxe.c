@@ -88,6 +88,7 @@ STATIC usb_setup_pkt_t                *gEndPoint0SetupPacket;
 #define USB3_STATUS_BUF_SIZE    512
 STATIC UINT8                          *gEndPoint0StatusBuf;
 STATIC USB_DEVICE_RX_CALLBACK         mDataReceivedCallback;
+STATIC UINTN                          mDataBufferSize;
 /*
 	UINT8 ep0_status_buf[USB3_STATUS_BUF_SIZE];
 */
@@ -1755,7 +1756,18 @@ DwUsb3DoSetConfig (
         ASSERT (gRxBuf != NULL);
         WriteBackDataCacheRange (gRxBuf, DATA_SIZE);
         req->bufdma = (UINT64 *)gRxBuf;
-        req->length = DATA_SIZE;
+        if (mDataBufferSize == 0) {
+          req->length = CMD_SIZE;
+        } else if (mDataBufferSize > DATA_SIZE) {
+          req->length = DATA_SIZE;
+          mDataBufferSize = mDataBufferSize - DATA_SIZE;
+        } else if (mDataBufferSize > CMD_SIZE) {
+          req->length = CMD_SIZE;
+          mDataBufferSize = mDataBufferSize - CMD_SIZE;
+        } else {
+          req->length = mDataBufferSize;
+          mDataBufferSize = 0;
+        }
         DwUsb3EndPointXStartTransfer (pcd, ep);
       }
     } else {
@@ -2115,7 +2127,18 @@ DwUsb3EndPointcompleteRequest (
       ASSERT (gRxBuf != NULL);
       WriteBackDataCacheRange (gRxBuf, DATA_SIZE);
       req->bufdma = (UINT64 *)gRxBuf;
-      req->length = DATA_SIZE;
+      if (mDataBufferSize == 0) {
+        req->length = CMD_SIZE;
+      } else if (mDataBufferSize > DATA_SIZE) {
+        req->length = DATA_SIZE;
+        mDataBufferSize = mDataBufferSize - DATA_SIZE;
+      } else if (mDataBufferSize > CMD_SIZE) {
+        req->length = CMD_SIZE;
+        mDataBufferSize = mDataBufferSize - CMD_SIZE;
+      } else {
+        req->length = mDataBufferSize;
+        mDataBufferSize = 0;
+      }
       DwUsb3EndPointXStartTransfer (pcd, ep);
     }
   }
@@ -2301,9 +2324,21 @@ DwUsb3Send (
   return EFI_SUCCESS;
 }
 
+EFI_STATUS
+DwUsb3Request (
+  IN UINTN   BufferSize
+  )
+{
+  if (BufferSize) {
+    mDataBufferSize = BufferSize;
+  }
+  return EFI_SUCCESS;
+}
+
 USB_DEVICE_PROTOCOL mUsbDevice = {
   DwUsb3Start,
-  DwUsb3Send
+  DwUsb3Send,
+  DwUsb3Request
 };
 
 EFI_STATUS
