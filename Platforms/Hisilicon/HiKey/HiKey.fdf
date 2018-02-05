@@ -132,7 +132,7 @@ READ_LOCK_STATUS   = TRUE
   INF MdeModulePkg/Bus/Pci/NonDiscoverablePciDeviceDxe/NonDiscoverablePciDeviceDxe.inf
   INF OpenPlatformPkg/Drivers/SdMmc/DwMmcHcDxe/DwMmcHcDxe.inf
   INF MdeModulePkg/Bus/Sd/EmmcDxe/EmmcDxe.inf
-  #INF MdeModulePkg/Bus/Sd/SdDxe/SdDxe.inf
+  INF MdeModulePkg/Bus/Sd/SdDxe/SdDxe.inf
 
   INF OpenPlatformPkg/Platforms/Hisilicon/HiKey/HiKeyDxe/HiKeyDxe.inf
 

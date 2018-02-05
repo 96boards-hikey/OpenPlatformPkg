@@ -428,7 +428,7 @@
   MdeModulePkg/Bus/Pci/NonDiscoverablePciDeviceDxe/NonDiscoverablePciDeviceDxe.inf
   OpenPlatformPkg/Drivers/SdMmc/DwMmcHcDxe/DwMmcHcDxe.inf
   MdeModulePkg/Bus/Sd/EmmcDxe/EmmcDxe.inf
-  #MdeModulePkg/Bus/Sd/SdDxe/SdDxe.inf
+  MdeModulePkg/Bus/Sd/SdDxe/SdDxe.inf
 
   OpenPlatformPkg/Platforms/Hisilicon/HiKey/HiKeyDxe/HiKeyDxe.inf
 
