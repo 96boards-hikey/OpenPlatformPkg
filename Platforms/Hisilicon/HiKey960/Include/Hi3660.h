@@ -32,8 +32,6 @@
 
 #define SCTRL_BAK_DATA0                         (SCTRL_REG_BASE + 0x40C)
 
-#define SCTRL_SCBAKDATA7                        (SCTRL_REG_BASE + 0x428)
-
 #define USB3OTG_BC_REG_BASE                     0xFF200000
 
 #define USB3OTG_CTRL0                           (USB3OTG_BC_REG_BASE + 0x000)
